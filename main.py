@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 from unidecode import unidecode
 import requests
 import json
+import time
 import os
 
 
@@ -165,6 +166,7 @@ def main():
         recipeInfo = []
         for recipeURL in recipeURLs:
             recipeInfo.append(getRecipeInfo(recipeURL))
+            time.sleep(1)
 
 if __name__ == "__main__":
     main()
