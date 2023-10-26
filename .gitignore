@@ -1,0 +1,4 @@
+output/data/*
+output/imgs/*
+.venv
+.env
