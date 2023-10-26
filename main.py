@@ -17,7 +17,6 @@ def getCatagoryURLs(url):
     return catagoryURLs
 
 def getRecipeURLs(url):
-
     page = requests.get(url)
     soup = BeautifulSoup(page.content, 'html.parser')
     recipeURLs = []
@@ -40,6 +39,7 @@ def getRecipeInfo(url):
         recipeInfo['name'] = recipeInfo['name'].replace('\\n', '').strip()
 
     if recipeInfo['name'] is None:
+        print("Not a recipe page")
         return None
     
     print(f"Found the name: {recipeInfo['name']}")
@@ -47,8 +47,13 @@ def getRecipeInfo(url):
     recipeInfo['catagory'] = []
     breadcrumb_items = soup.find_all('li', {'class': 'comp mntl-breadcrumbs__item mntl-block'})
     for item in breadcrumb_items:
-        text = item.find('span', {'class': 'link__wrapper'}).text
-        recipeInfo['catagory'].append(text)
+        span_item = item.find('span', {'class': 'link__wrapper'})
+        if span_item is not None:
+            text = span_item.text
+            recipeInfo['catagory'].append(text)
+        else:
+            text = "none"
+            recipeInfo['catagory'].append(text)
     print(f"Found the catagories: {recipeInfo['catagory']}")
 
     recipe_details_items = soup.find_all('div', {'class': 'mntl-recipe-details__item'})
@@ -99,7 +104,6 @@ def getRecipeInfo(url):
             name = row.find('td', {'class': 'mntl-nutrition-facts-summary__table-cell type--dogg'}).text.strip() if row.find('td', {'class': 'mntl-nutrition-facts-summary__table-cell type--dogg'}) else ''
             nutrition_facts[name] = amount
 
-    # Scrape the detailed table
     nutrition_detailed_tbody = soup.find('tbody', {'class': 'mntl-nutrition-facts-label__table-body type--cat'})
     if nutrition_detailed_tbody:
         for row in nutrition_detailed_tbody.find_all('tr'):
@@ -114,10 +118,16 @@ def getRecipeInfo(url):
                     name, amount = name_and_amount
                     nutrition_facts[name.strip()] = amount.strip()
 
+    recipeInfo['url'] = url
+
     print(f"Found nutrition facts: {nutrition_facts}")
     recipeInfo['nutrition'] = nutrition_facts
 
     img_tag = soup.find('img', {'class': 'primary-image__image'})
+
+    if not img_tag:
+        img_tag = soup.find('img', {'class': 'universal-image__image lazyloaded'})
+
     if img_tag and 'src' in img_tag.attrs:
         img_url = img_tag['src']
         
@@ -138,6 +148,7 @@ def getRecipeInfo(url):
 
     append_to_json_file('.\\output\\data\\recipeInfo.json', recipeInfo)
     
+    time.sleep(0.1)
     return recipeInfo
 
 def append_to_json_file(filepath, new_data):
@@ -155,18 +166,41 @@ def append_to_json_file(filepath, new_data):
     with open(filepath, 'w') as outfile:
         json.dump(existing_data, outfile, indent=4)
 
+
+def load_processed_urls_from_recipe_info(filepath):
+    processed_urls = set()
+    try:
+        with open(filepath, 'r') as infile:
+            data = json.load(infile)
+        for recipe in data.get("recipes", {}).get("recipe", []):
+            url = recipe.get("url")
+            if url:
+                processed_urls.add(url)
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass  # File not found or empty, returning empty set
+    return processed_urls
+
+
 def main():
     recipeURL = "https://www.allrecipes.com/recipes-a-z-6735880"
+    all_processed_urls = load_processed_urls_from_recipe_info('.\\output\\data\\recipeInfo.json')
 
-    catagoryURLs = getCatagoryURLs(recipeURL)
-    recipeURLs = []
+    # Convert category URLs to a set to remove duplicates
+    catagoryURLs = set(getCatagoryURLs(recipeURL))
+
+    # Loop through each category URL
     for catagoryURL in catagoryURLs:
-        recipeURLs = getRecipeURLs(catagoryURL)
+        # Convert recipe URLs to a set to remove duplicates within a category
+        recipeURLs = set(getRecipeURLs(catagoryURL))
+        
+        # Only keep URLs that haven't been processed yet
+        new_recipeURLs = recipeURLs - all_processed_urls
 
-        recipeInfo = []
-        for recipeURL in recipeURLs:
-            recipeInfo.append(getRecipeInfo(recipeURL))
-            time.sleep(1)
+        # Loop through each new recipe URL
+        for recipeURL in new_recipeURLs:
+            getRecipeInfo(recipeURL)
+            # Add the newly processed URL to the global set
+            all_processed_urls.add(recipeURL)
 
 if __name__ == "__main__":
     main()
