@@ -1,4 +1,5 @@
 from bs4 import BeautifulSoup
+from unidecode import unidecode
 import requests
 import json
 import os
@@ -69,6 +70,7 @@ def getRecipeInfo(url):
             
             # Combine the quantity, unit, and name to form the complete ingredient
             complete_ingredient = f"{quantity} {unit} {name}".strip()
+            complete_ingredient = unidecode(complete_ingredient)  # Remove non-ASCII characters
             ingredients.append(complete_ingredient)
             print(f"Found ingredients: {ingredients}")
             recipeInfo['ingredients'] = ingredients
@@ -162,7 +164,6 @@ def main():
 
         recipeInfo = []
         for recipeURL in recipeURLs:
-            print(f"getting recipe info for {recipeURL}")
             recipeInfo.append(getRecipeInfo(recipeURL))
 
 if __name__ == "__main__":
