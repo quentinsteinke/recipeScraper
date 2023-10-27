@@ -1,5 +1,6 @@
 import sqlite3
 import json
+import logging
 
 # Load the recipeInfo.json file
 with open('output\\data\\recipeInfo.json', 'r') as f:
@@ -90,11 +91,15 @@ CREATE TABLE IF NOT EXISTS recipe_nutrition (
 ''')
 
 # Populate the database from the JSON data
+
+logging.basicConfig(filename='recipe_scraping.log', level=logging.DEBUG)
+
 for recipe in data['recipes']['recipe']:
     # Insert recipe and get the last inserted id
     cursor.execute("INSERT INTO recipes (name, url, image) VALUES (?, ?, ?)",
                    (recipe['name'], recipe['url'], recipe.get('image', None)))
     recipe_id = cursor.lastrowid
+    logging.debug(f"Inserted recipe {recipe['name']} with id {recipe_id}")
 
     # Insert categories
     for category in recipe.get('catagory', []):
@@ -103,6 +108,7 @@ for recipe in data['recipes']['recipe']:
         category_id = cursor.fetchone()[0]
         cursor.execute("INSERT INTO recipe_categories (recipe_id, category_id) VALUES (?, ?)",
                        (recipe_id, category_id))
+        logging.debug(f"Inserted category {category} for recipe {recipe['name']}")
 
     # Insert ingredients
     for ingredient in recipe.get('ingredients', []):
@@ -111,6 +117,7 @@ for recipe in data['recipes']['recipe']:
         ingredient_id = cursor.fetchone()[0]
         cursor.execute("INSERT INTO recipe_ingredients (recipe_id, ingredient_id) VALUES (?, ?)",
                        (recipe_id, ingredient_id))
+        logging.debug(f"Inserted ingredient {ingredient} for recipe {recipe['name']}")
 
     # Insert directions
     for direction in recipe.get('directions', []):
@@ -119,6 +126,7 @@ for recipe in data['recipes']['recipe']:
         direction_id = cursor.fetchone()[0]
         cursor.execute("INSERT INTO recipe_directions (recipe_id, direction_id) VALUES (?, ?)",
                        (recipe_id, direction_id))
+        logging.debug(f"Inserted direction {direction} for recipe {recipe['name']}")
 
     # Insert nutrition facts
     for name, amount in recipe.get('nutrition', {}).items():
@@ -127,6 +135,7 @@ for recipe in data['recipes']['recipe']:
         nutrition_id = cursor.fetchone()[0]
         cursor.execute("INSERT INTO recipe_nutrition (recipe_id, nutrition_id) VALUES (?, ?)",
                        (recipe_id, nutrition_id))
+        logging.debug(f"Inserted nutrition fact {name}: {amount} for recipe {recipe['name']}")
 
 # Commit and close the database connection
 conn.commit()
